@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The King of Fighters 2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    touch-action: none;
+  }
+  #gameWrapper {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    max-width: 800px;
+    image-rendering: pixelated;
+    border: 2px solid #ff4400;
+    box-shadow: 0 0 30px #ff4400aa, 0 0 60px #ff220055;
+  }
+
+  /* ── HUD ── */
+  #hud {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: #0a0a0a;
+    border: 2px solid #ff4400;
+    border-bottom: none;
+    gap: 8px;
+  }
+  .hud-player { flex: 1; }
+  .hud-player.right { text-align: right; }
+  .fighter-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffcc00;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px #ffcc00;
+    margin-bottom: 3px;
+  }
+  .health-bar-bg {
+    height: 14px;
+    background: #1a0000;
+    border: 1px solid #550000;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .health-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+    position: relative;
+  }
+  #p1health { background: linear-gradient(90deg, #ff2200, #ff6600, #ffcc00); }
+  #p2health { background: linear-gradient(270deg, #ff2200, #ff6600, #ffcc00); float: right; }
+  .health-bar-bg.right { direction: rtl; }
+
+  .hud-center {
+    text-align: center;
+    min-width: 70px;
+  }
+  #timerDisplay {
+    font-size: 26px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px #ff4400, 0 0 20px #ff4400;
+    line-height: 1;
+  }
+  #roundDisplay {
+    font-size: 9px;
+    color: #ff6600;
+    letter-spacing: 2px;
+  }
+  #winDots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .win-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #555; }
+  .win-dot.p1 { background: #ffcc00; box-shadow: 0 0 5px #ffcc00; }
+  .win-dot.p2 { background: #00aaff; box-shadow: 0 0 5px #00aaff; }
+
+  /* special bar */
+  .special-bar-bg {
+    height: 6px;
+    background: #001122;
+    border: 1px solid #003355;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 3px;
+  }
+  .special-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0055ff, #00aaff, #00ffff);
+    border-radius: 2px;
+    transition: width 0.2s;
+    box-shadow: 0 0 6px #00aaff;
+  }
+  #p2special { background: linear-gradient(270deg, #0055ff, #00aaff, #00ffff); float: right; }
+
+  /* ── TOUCH CONTROLS ── */
+  #controls {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 8px;
+    background: #080808;
+    border: 2px solid #ff4400;
+    border-top: 1px solid #331100;
+    gap: 10px;
+    user-select: none;
+  }
+  .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-row { display: flex; gap: 6px; justify-content: center; }
+
+  .btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 2px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.08s, box-shadow 0.08s;
+    flex-shrink: 0;
+    -webkit-touch-callout: none;
+    touch-action: none;
+  }
+  .btn:active, .btn.pressed {
+    transform: scale(0.88);
+  }
+  .btn-move {
+    background: #111;
+    border-color: #ff6600;
+    color: #ff6600;
+    font-size: 16px;
+    box-shadow: 0 0 8px #ff660066;
+  }
+  .btn-move.pressed { box-shadow: 0 0 16px #ff6600; background: #221100; }
+
+  .btn-jump {
+    width: 44px; height: 44px;
+    background: #111;
+    border-color: #aaff00;
+    color: #aaff00;
+    font-size: 13px;
+    box-shadow: 0 0 8px #aaff0066;
+    align-self: center;
+  }
+  .btn-jump.pressed { box-shadow: 0 0 16px #aaff00; background: #112200; }
+
+  .btn-punch {
+    width: 56px; height: 56px;
+    background: radial-gradient(circle, #331100, #110500);
+    border-color: #ff4400;
+    color: #ff4400;
+    font-size: 10px; font-weight: 900;
+    box-shadow: 0 0 10px #ff440088;
+    text-transform: uppercase;
+  }
+  .btn-punch.pressed { box-shadow: 0 0 20px #ff4400; background: radial-gradient(circle, #662200, #331100); }
+
+  .btn-kick {
+    width: 56px; height: 56px;
+    background: radial-gradient(circle, #1a1100, #0a0800);
+    border-color: #ffcc00;
+    color: #ffcc00;
+    font-size: 10px; font-weight: 900;
+    box-shadow: 0 0 10px #ffcc0088;
+    text-transform: uppercase;
+  }
+  .btn-kick.pressed { box-shadow: 0 0 20px #ffcc00; background: radial-gradient(circle, #332200, #1a1100); }
+
+  .btn-special {
+    width: 58px; height: 58px;
+    background: radial-gradient(circle, #001133, #000511);
+    border-color: #00aaff;
+    color: #00aaff;
+    font-size: 9px; font-weight: 900;
+    box-shadow: 0 0 12px #00aaff88;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .btn-special.pressed { box-shadow: 0 0 25px #00aaff; background: radial-gradient(circle, #002244, #001133); }
+  .btn-special.cooling {
+    border-color: #225566;
+    color: #225566;
+    box-shadow: none;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.93);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    font-family: 'Courier New', monospace;
+  }
+  .screen.hidden { display: none; }
+
+  .screen-title {
+    font-size: clamp(24px, 6vw, 48px);
+    font-weight: 900;
+    color: #ff4400;
+    text-shadow: 0 0 20px #ff4400, 0 0 40px #ff220066;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .screen-subtitle {
+    font-size: clamp(10px, 2.5vw, 14px);
+    color: #ff8800;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  /* character select */
+  .char-select-grid {
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 30px;
+  }
+  .char-card {
+    width: 130px;
+    border: 2px solid #333;
+    border-radius: 4px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #0a0a0a;
+    position: relative;
+  }
+  .char-card:hover, .char-card.selected {
+    border-color: #ff4400;
+    background: #1a0500;
+    box-shadow: 0 0 20px #ff440066;
+    transform: scale(1.05);
+  }
+  .char-canvas { display: block; margin: 0 auto 8px; }
+  .char-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffcc00;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .char-origin {
+    font-size: 9px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .char-stats {
+    font-size: 8px;
+    color: #ff6600;
+    margin-top: 4px;
+  }
+  .selected-badge {
+    position: absolute;
+    top: -8px; left: 50%; transform: translateX(-50%);
+    background: #ff4400;
+    color: #fff;
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    display: none;
+  }
+  .char-card.selected .selected-badge { display: block; }
+
+  .screen-btn {
+    padding: 14px 40px;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    background: transparent;
+    color: #ff4400;
+    border: 2px solid #ff4400;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    box-shadow: 0 0 15px #ff440044;
+    margin: 6px;
+  }
+  .screen-btn:hover, .screen-btn:active {
+    background: #ff4400;
+    color: #000;
+    box-shadow: 0 0 30px #ff4400;
+  }
+  .screen-btn.blue {
+    color: #00aaff;
+    border-color: #00aaff;
+    box-shadow: 0 0 15px #00aaff44;
+  }
+  .screen-btn.blue:hover, .screen-btn.blue:active {
+    background: #00aaff;
+    color: #000;
+    box-shadow: 0 0 30px #00aaff;
+  }
+
+  /* round announce */
+  #roundAnnounce {
+    position: fixed;
+    top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    z-index: 200;
+    font-size: clamp(32px, 10vw, 72px);
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 30px #ff4400, 0 0 60px #ff4400;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    transition: transform 0.2s cubic-bezier(.175,.885,.32,1.275), opacity 0.3s;
+    pointer-events: none;
+    opacity: 0;
+    text-align: center;
+  }
+  #roundAnnounce.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  /* combo display */
+  #comboDisplay {
+    position: absolute;
+    top: 80px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffcc00;
+    text-shadow: 0 0 20px #ffcc00;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    white-space: nowrap;
+    z-index: 50;
+    text-align: center;
+  }
+
+  /* game over */
+  #gameoverScreen .winner-name {
+    font-size: clamp(28px, 8vw, 56px);
+    font-weight: 900;
+    color: #ffcc00;
+    text-shadow: 0 0 20px #ffcc00, 0 0 40px #ff880066;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  #gameoverScreen .result-text {
+    font-size: clamp(14px, 4vw, 22px);
+    color: #ff8800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .scanlines {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<!-- ── SELECT SCREEN ── -->
+<div id="selectScreen" class="screen">
+  <div class="screen-title">King of Fighters</div>
+  <div class="screen-subtitle">2026 · Select Your Fighter</div>
+  <div class="char-select-grid" id="charGrid"></div>
+  <button class="screen-btn" id="startBtn" onclick="startGame()">FIGHT!</button>
+</div>
+
+<!-- ── GAME OVER SCREEN ── -->
+<div id="gameoverScreen" class="screen hidden">
+  <div class="screen-title">Game Over</div>
+  <div class="winner-name" id="winnerName"></div>
+  <div class="result-text" id="resultText"></div>
+  <button class="screen-btn" onclick="showSelect()">REMATCH</button>
+  <button class="screen-btn blue" onclick="showSelect()">CHARACTER SELECT</button>
+</div>
+
+<!-- ── GAME ── -->
+<div id="gameWrapper" style="display:none">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-player">
+      <div class="fighter-name" id="p1Name">KIRA</div>
+      <div class="health-bar-bg"><div class="health-bar-fill" id="p1health" style="width:100%"></div></div>
+      <div class="special-bar-bg"><div class="special-bar-fill" id="p1special" style="width:0%"></div></div>
+    </div>
+    <div class="hud-center">
+      <div id="roundDisplay">ROUND 1</div>
+      <div id="timerDisplay">99</div>
+      <div id="winDots">
+        <div class="win-dot" id="p1w1"></div>
+        <div class="win-dot" id="p1w2"></div>
+        <div style="width:16px"></div>
+        <div class="win-dot" id="p2w1"></div>
+        <div class="win-dot" id="p2w2"></div>
+      </div>
+    </div>
+    <div class="hud-player right">
+      <div class="fighter-name" id="p2Name" style="text-align:right">CPU</div>
+      <div class="health-bar-bg" style="direction:rtl"><div class="health-bar-fill" id="p2health" style="width:100%"></div></div>
+      <div class="special-bar-bg" style="direction:rtl"><div class="special-bar-fill" id="p2special" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div style="position:relative; width:100%; max-width:800px;">
+    <canvas id="gameCanvas" width="800" height="300"></canvas>
+    <div id="comboDisplay"></div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="controls">
+    <!-- Left: movement -->
+    <div class="ctrl-group">
+      <div class="ctrl-row">
+        <div class="btn btn-jump" id="btnJump" data-action="jump">↑</div>
+      </div>
+      <div class="ctrl-row">
+        <div class="btn btn-move" id="btnLeft" data-action="left">◀</div>
+        <div class="btn btn-move" id="btnRight" data-action="right">▶</div>
+      </div>
+    </div>
+
+    <!-- Right: actions -->
+    <div class="ctrl-group">
+      <div class="ctrl-row">
+        <div class="btn btn-special" id="btnSpecial" data-action="special">SP<br>ATK</div>
+        <div class="btn btn-punch" id="btnPunch" data-action="punch">PUN<br>CH</div>
+      </div>
+      <div class="ctrl-row">
+        <div style="width:52px"></div>
+        <div class="btn btn-kick" id="btnKick" data-action="kick">KI<br>CK</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Round announce -->
+<div id="roundAnnounce"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  THE KING OF FIGHTERS 2026
+//  Single-file HTML5 Canvas fighting game
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 300;
+canvas.width = W; canvas.height = H;
+
+// ── Audio (simple beep synthesis) ──────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) { try { audioCtx = new AudioCtx(); } catch(e){} }
+  return audioCtx;
+}
+
+function playSound(type) {
+  const ac = getAudio(); if (!ac) return;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+  const t = ac.currentTime;
+  switch(type) {
+    case 'punch':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.start(t); osc.stop(t + 0.1); break;
+    case 'kick':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      osc.start(t); osc.stop(t + 0.14); break;
+    case 'hit':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.06);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      osc.start(t); osc.stop(t + 0.08); break;
+    case 'special':
+      for (let i = 0; i < 3; i++) {
+        const o2 = ac.createOscillator(), g2 = ac.createGain();
+        o2.connect(g2); g2.connect(ac.destination);
+        o2.type = 'sine';
+        o2.frequency.setValueAtTime(400 + i*200, t + i*0.05);
+        o2.frequency.exponentialRampToValueAtTime(1200, t + i*0.05 + 0.15);
+        g2.gain.setValueAtTime(0.18, t + i*0.05);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.05 + 0.2);
+        o2.start(t + i*0.05); o2.stop(t + i*0.05 + 0.2);
+      } break;
+    case 'win':
+      [440,550,660,880].forEach((f,i) => {
+        const o2 = ac.createOscillator(), g2 = ac.createGain();
+        o2.connect(g2); g2.connect(ac.destination);
+        o2.type = 'triangle'; o2.frequency.value = f;
+        g2.gain.setValueAtTime(0.2, t + i*0.12);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.12 + 0.25);
+        o2.start(t + i*0.12); o2.stop(t + i*0.12 + 0.3);
+      }); break;
+    case 'block':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, t);
+      osc.frequency.exponentialRampToValueAtTime(400, t + 0.05);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      osc.start(t); osc.stop(t + 0.06); break;
+  }
+}
+
+// ── Character Definitions ──────────────────────────────
+const CHARACTERS = [
+  {
+    id: 'kira',
+    name: 'KIRA',
+    origin: 'Japan · Striker',
+    stats: 'PWR:███░░  SPD:████░',
+    color: '#ff4400',
+    glowColor: '#ff4400',
+    hairColor: '#cc2200',
+    clothColor: '#cc0000',
+    beltColor: '#ffcc00',
+    punchDmg: 12, kickDmg: 18, specialDmg: 35,
+    speed: 3.8,
+    specialName: 'FLAME BURST',
+    specialColor: '#ff6600',
+  },
+  {
+    id: 'zero',
+    name: 'ZERO',
+    origin: 'Korea · Shadow',
+    stats: 'PWR:████░  SPD:███░░',
+    color: '#0088ff',
+    glowColor: '#00aaff',
+    hairColor: '#113366',
+    clothColor: '#0044aa',
+    beltColor: '#ffffff',
+    punchDmg: 14, kickDmg: 20, specialDmg: 38,
+    speed: 3.4,
+    specialName: 'DARK WAVE',
+    specialColor: '#0066ff',
+  },
+  {
+    id: 'maya',
+    name: 'MAYA',
+    origin: 'Brazil · Whirlwind',
+    stats: 'PWR:██░░░  SPD:█████',
+    color: '#ff00aa',
+    glowColor: '#ff44cc',
+    hairColor: '#aa0077',
+    clothColor: '#880066',
+    beltColor: '#ff88dd',
+    punchDmg: 10, kickDmg: 15, specialDmg: 30,
+    speed: 4.5,
+    specialName: 'CYCLONE',
+    specialColor: '#ff00cc',
+  },
+  {
+    id: 'rex',
+    name: 'REX',
+    origin: 'USA · Titan',
+    stats: 'PWR:█████  SPD:██░░░',
+    color: '#00cc55',
+    glowColor: '#00ff66',
+    hairColor: '#005522',
+    clothColor: '#004422',
+    beltColor: '#886600',
+    punchDmg: 16, kickDmg: 22, specialDmg: 40,
+    speed: 2.8,
+    specialName: 'QUAKE SLAM',
+    specialColor: '#00aa44',
+  }
+];
+
+// ── Game State ──────────────────────────────────────────
+let selectedChar = 0;
+let gameState = 'select'; // select | playing | paused | gameover
+let p1Wins = 0, p2Wins = 0;
+let currentRound = 1;
+let roundTimer = 99;
+let timerInterval = null;
+let particles = [];
+let hits = [];
+let comboTimer = null;
+let comboCount = 0;
+let lastComboTime = 0;
+
+// Fighter class
+class Fighter {
+  constructor(x, facing, charIdx, isPlayer) {
+    this.x = x;
+    this.y = H - 60; // ground level
+    this.w = 44;
+    this.h = 70;
+    this.velX = 0;
+    this.velY = 0;
+    this.facing = facing; // 1=right, -1=left
+    this.health = 100;
+    this.special = 0;
+    this.isPlayer = isPlayer;
+    this.char = CHARACTERS[charIdx];
+
+    // states
+    this.state = 'idle'; // idle|walk|jump|punch|kick|special|hit|block|dead
+    this.stateTimer = 0;
+    this.blocking = false;
+    this.onGround = true;
+    this.specialCooldown = 0;
+    this.hitStun = 0;
+    this.invincible = 0;
+    this.attackHit = false; // did current attack land?
+
+    // animation
+    this.animFrame = 0;
+    this.animTimer = 0;
+    this.idleAnim = 0;
+
+    // AI
+    this.aiTimer = 0;
+    this.aiAction = 'idle';
+    this.aiBlockTimer = 0;
+  }
+
+  get groundY() { return H - 60; }
+  get cx() { return this.x + this.w/2; }
+  get hitbox() {
+    return { x: this.x, y: this.y, w: this.w, h: this.h };
+  }
+  get attackBox() {
+    if (this.state === 'punch') {
+      const reach = 55;
+      return this.facing === 1
+        ? { x: this.x + this.w, y: this.y + 10, w: reach, h: 28 }
+        : { x: this.x - reach, y: this.y + 10, w: reach, h: 28 };
+    }
+    if (this.state === 'kick') {
+      const reach = 65;
+      return this.facing === 1
+        ? { x: this.x + this.w - 5, y: this.y + 30, w: reach, h: 30 }
+        : { x: this.x - reach + 5, y: this.y + 30, w: reach, h: 30 };
+    }
+    if (this.state === 'special') {
+      const reach = 120;
+      return this.facing === 1
+        ? { x: this.x + this.w - 10, y: this.y, w: reach, h: this.h }
+        : { x: this.x - reach + 10, y: this.y, w: reach, h: this.h };
+    }
+    return null;
+  }
+
+  update(dt, other) {
+    // timers
+    if (this.stateTimer > 0) this.stateTimer -= dt;
+    if (this.specialCooldown > 0) this.specialCooldown -= dt;
+    if (this.hitStun > 0) this.hitStun -= dt;
+    if (this.invincible > 0) this.invincible -= dt;
+
+    // gravity
+    if (!this.onGround) {
+      this.velY += 0.5;
+    }
+
+    // move
+    if (this.hitStun <= 0) {
+      this.x += this.velX;
+      this.y += this.velY;
+    } else {
+      this.x += this.velX * 0.3;
+      this.y += this.velY;
+    }
+
+    // ground collision
+    if (this.y >= this.groundY) {
+      this.y = this.groundY;
+      this.velY = 0;
+      this.onGround = true;
+      if (this.state === 'jump') {
+        this.state = 'idle';
+        this.stateTimer = 0;
+      }
+    }
+
+    // walls
+    if (this.x < 0) { this.x = 0; this.velX = 0; }
+    if (this.x + this.w > W) { this.x = W - this.w; this.velX = 0; }
+
+    // friction
+    if (this.onGround && this.state !== 'walk') {
+      this.velX *= 0.7;
+    }
+
+    // face opponent
+    if (this.hitStun <= 0 && this.state === 'idle' || this.state === 'walk') {
+      this.facing = other.cx > this.cx ? 1 : -1;
+    }
+
+    // attack hit detection
+    if ((this.state === 'punch' || this.state === 'kick' || this.state === 'special') &&
+        this.stateTimer > 0 && !this.attackHit) {
+      const ab = this.attackBox;
+      if (ab && rectsOverlap(ab, other.hitbox)) {
+        this.attackHit = true;
+        other.receiveHit(this);
+      }
+    }
+
+    // state recovery
+    if (this.stateTimer <= 0) {
+      if (this.state === 'punch' || this.state === 'kick' || this.state === 'special') {
+        this.state = 'idle';
+        this.attackHit = false;
+      }
+      if (this.state === 'hit') {
+        this.state = 'idle';
+      }
+    }
+
+    // animation
+    this.animTimer += dt;
+    if (this.animTimer > 8) {
+      this.animTimer = 0;
+      this.animFrame = (this.animFrame + 1) % 4;
+    }
+    this.idleAnim = Math.sin(Date.now() * 0.003) * 2;
+
+    // special bar charge
+    if (this.special < 100) this.special = Math.min(100, this.special + 0.015);
+
+    // update HUD
+    if (this.isPlayer) {
+      document.getElementById('p1health').style.width = this.health + '%';
+      document.getElementById('p1special').style.width = this.special + '%';
+    } else {
+      document.getElementById('p2health').style.width = this.health + '%';
+      document.getElementById('p2special').style.width = this.special + '%';
+    }
+  }
+
+  receiveHit(attacker) {
+    if (this.invincible > 0 || this.state === 'dead') return;
+
+    let dmg = 0;
+    if (attacker.state === 'punch') dmg = attacker.char.punchDmg;
+    else if (attacker.state === 'kick') dmg = attacker.char.kickDmg;
+    else if (attacker.state === 'special') dmg = attacker.char.specialDmg;
+
+    // blocking reduces damage
+    if (this.blocking && this.onGround) {
+      dmg = Math.floor(dmg * 0.15);
+      playSound('block');
+      spawnParticles(this.cx, this.y + 20, '#aaaaff', 5);
+      this.hitStun = 5;
+    } else {
+      playSound('hit');
+      this.state = 'hit';
+      this.stateTimer = 20;
+      this.hitStun = 20;
+      // knockback
+      this.velX = attacker.facing * (attacker.state === 'special' ? 6 : 3);
+      this.velY = attacker.state === 'special' ? -4 : -1.5;
+      this.onGround = false;
+      // spawn hit particles
+      spawnParticles(this.cx, this.y + 30, attacker.char.color, attacker.state === 'special' ? 20 : 10);
+      spawnHitText(this.cx, this.y, attacker.state === 'special' ? '💥' : attacker.state === 'kick' ? 'KICK!' : 'HIT!', attacker.char.color);
+      // combo
+      if (attacker.isPlayer) updateCombo();
+    }
+
+    this.health = Math.max(0, this.health - dmg);
+    attacker.special = Math.min(100, attacker.special + dmg * 0.4);
+  }
+
+  jump() {
+    if (!this.onGround || this.hitStun > 0 || this.state === 'dead') return;
+    this.velY = -11;
+    this.onGround = false;
+    this.state = 'jump';
+  }
+
+  punch() {
+    if (this.hitStun > 0 || this.state === 'dead' ||
+        this.state === 'punch' || this.state === 'kick' || this.state === 'special') return;
+    this.state = 'punch';
+    this.stateTimer = 18;
+    this.attackHit = false;
+    playSound('punch');
+  }
+
+  kick() {
+    if (this.hitStun > 0 || this.state === 'dead' ||
+        this.state === 'punch' || this.state === 'kick' || this.state === 'special') return;
+    this.state = 'kick';
+    this.stateTimer = 22;
+    this.attackHit = false;
+    playSound('kick');
+  }
+
+  doSpecial() {
+    if (this.special < 100 || this.specialCooldown > 0 || this.state === 'dead' ||
+        this.state === 'special' || this.hitStun > 0) return;
+    this.state = 'special';
+    this.stateTimer = 35;
+    this.attackHit = false;
+    this.special = 0;
+    this.specialCooldown = 180;
+    playSound('special');
+    spawnParticles(this.cx, this.y + 20, this.char.specialColor, 30);
+    showSpecialName(this.char.specialName, this.char.specialColor);
+  }
+
+  // AI update
+  updateAI(other, dt) {
+    if (this.state === 'dead') return;
+    this.aiTimer -= dt;
+
+    const dist = Math.abs(this.cx - other.cx);
+    const dx = other.cx - this.cx;
+
+    // blocking logic
+    if (other.state === 'punch' || other.state === 'kick' || other.state === 'special') {
+      if (dist < 120 && Math.random() < 0.35) {
+        this.blocking = true;
+        this.aiBlockTimer = 25;
+        return;
+      }
+    }
+    if (this.aiBlockTimer > 0) {
+      this.aiBlockTimer -= dt;
+      if (this.aiBlockTimer <= 0) this.blocking = false;
+    }
+
+    if (this.aiTimer > 0) return;
+    this.blocking = false;
+
+    // decide next action
+    const r = Math.random();
+
+    if (dist > 200) {
+      // move toward player
+      this.velX = dx > 0 ? this.char.speed * 0.85 : -this.char.speed * 0.85;
+      this.state = 'walk';
+      this.aiTimer = 15 + Math.random() * 15;
+    } else if (dist < 70) {
+      // attack range
+      if (r < 0.1 && this.special >= 100) {
+        this.doSpecial();
+        this.aiTimer = 60 + Math.random() * 40;
+      } else if (r < 0.45) {
+        this.punch();
+        this.aiTimer = 25 + Math.random() * 20;
+      } else if (r < 0.75) {
+        this.kick();
+        this.aiTimer = 30 + Math.random() * 20;
+      } else if (r < 0.85) {
+        // jump attack
+        this.jump();
+        this.aiTimer = 20;
+      } else {
+        // back off briefly
+        this.velX = dx > 0 ? -this.char.speed * 0.5 : this.char.speed * 0.5;
+        this.state = 'walk';
+        this.aiTimer = 20;
+      }
+    } else {
+      // medium range
+      if (r < 0.6) {
+        this.velX = dx > 0 ? this.char.speed * 0.9 : -this.char.speed * 0.9;
+        this.state = 'walk';
+        this.aiTimer = 12 + Math.random() * 10;
+      } else if (r < 0.75) {
+        this.kick();
+        this.aiTimer = 30;
+      } else {
+        this.aiTimer = 10 + Math.random() * 15;
+      }
+    }
+  }
+
+  draw() {
+    ctx.save();
+    const c = this.char;
+    const x = this.x, y = this.y, w = this.w, h = this.h;
+    const cx = x + w/2;
+    const facing = this.facing;
+    const isHit = this.state === 'hit';
+    const isDead = this.state === 'dead';
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(cx, this.groundY + 10, 22, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // flash on hit
+    if (isHit && Math.floor(this.stateTimer) % 4 < 2) {
+      ctx.globalAlpha = 0.5;
+    }
+
+    // glow
+    if (this.state === 'special') {
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.15 * Math.sin(Date.now()*0.02);
+      const g = ctx.createRadialGradient(cx, y+h/2, 10, cx, y+h/2, 60);
+      g.addColorStop(0, c.specialColor);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx-60, y-10, 120, h+20);
+      ctx.restore();
+    }
+
+    // draw character (pixel art style)
+    const scale = facing; // 1 or -1 for mirroring
+    ctx.translate(cx, y);
+    ctx.scale(facing, 1);
+
+    // body positions based on state
+    let bodyOffY = this.idleAnim;
+    let legAngle = 0;
+    let armAngle = 0;
+    let punchExtend = 0;
+    let kickExtend = 0;
+
+    if (this.state === 'walk') {
+      const wa = Math.sin(Date.now() * 0.02) * 20;
+      legAngle = wa;
+      bodyOffY = Math.abs(Math.sin(Date.now() * 0.02)) * 3;
+    }
+    if (this.state === 'jump') {
+      legAngle = -20;
+      bodyOffY = -2;
+    }
+    if (this.state === 'punch') {
+      punchExtend = Math.min(1, (22 - this.stateTimer) / 8);
+      armAngle = 10;
+      bodyOffY = 2;
+    }
+    if (this.state === 'kick') {
+      kickExtend = Math.min(1, (22 - this.stateTimer) / 10);
+    }
+    if (isHit) {
+      bodyOffY = 4;
+      armAngle = -20;
+    }
+    if (isDead) {
+      ctx.rotate(0.4);
+      bodyOffY = 10;
+    }
+
+    // legs
+    ctx.save();
+    ctx.translate(0, bodyOffY);
+    // left leg
+    ctx.save();
+    ctx.translate(-8, h/2 - 5);
+    ctx.rotate((legAngle - 15) * Math.PI/180);
+    ctx.fillStyle = c.clothColor;
+    ctx.fillRect(-5, 0, 10, 24);
+    // shoe
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-5, 20, 12, 8);
+    ctx.restore();
+    // right leg / kick leg
+    ctx.save();
+    ctx.translate(8, h/2 - 5);
+    if (this.state === 'kick') {
+      ctx.rotate((-legAngle + 15 + kickExtend * 70) * Math.PI/180);
+    } else {
+      ctx.rotate((-legAngle + 15) * Math.PI/180);
+    }
+    ctx.fillStyle = c.clothColor;
+    ctx.fillRect(-5, 0, 10, 24);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-5, 20, 12, 8);
+    ctx.restore();
+
+    // torso
+    ctx.fillStyle = c.clothColor;
+    ctx.fillRect(-w/2 + 4, -10, w - 8, h/2 + 5);
+
+    // belt
+    ctx.fillStyle = c.beltColor;
+    ctx.fillRect(-w/2 + 4, 6, w - 8, 5);
+
+    // arms
+    // left arm (back)
+    ctx.save();
+    ctx.translate(-w/2 + 8, -8);
+    ctx.rotate((armAngle - 15) * Math.PI/180);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-5, 0, 9, 22);
+    ctx.fillStyle = '#ffcc99';
+    ctx.fillRect(-4, 18, 8, 8);
+    ctx.restore();
+
+    // right arm (punch arm)
+    ctx.save();
+    ctx.translate(w/2 - 8, -8);
+    if (this.state === 'punch') {
+      ctx.translate(punchExtend * 18, punchExtend * 5);
+      ctx.rotate(punchExtend * 15 * Math.PI/180);
+    } else {
+      ctx.rotate((armAngle + 15) * Math.PI/180);
+    }
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-4, 0, 9, 22);
+    ctx.fillStyle = '#ffcc99';
+    ctx.fillRect(-4, 18, 8, 8);
+    ctx.restore();
+
+    // head
+    const headY = -h/2 - 2 + bodyOffY;
+    // neck
+    ctx.fillStyle = '#ffcc99';
+    ctx.fillRect(-5, headY + 18, 10, 8);
+    // head
+    ctx.fillStyle = '#ffcc99';
+    ctx.beginPath();
+    ctx.ellipse(0, headY + 10, 14, 15, 0, 0, Math.PI*2);
+    ctx.fill();
+    // hair
+    ctx.fillStyle = c.hairColor;
+    ctx.beginPath();
+    ctx.ellipse(0, headY, 14, 10, 0, Math.PI, Math.PI*2);
+    ctx.fill();
+    // hair spikes
+    ctx.fillStyle = c.hairColor;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i*7, headY);
+      ctx.lineTo(i*7 - 4, headY - 8);
+      ctx.lineTo(i*7 + 4, headY - 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // eyes
+    ctx.fillStyle = isHit ? '#ff0000' : '#000';
+    ctx.fillRect(3, headY + 6, 5, 4);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(4, headY + 7, 2, 2);
+    // blocking face
+    if (this.blocking) {
+      ctx.fillStyle = '#ffcc99';
+      ctx.fillRect(-8, headY + 4, 8, 8); // arm blocking
+    }
+
+    ctx.restore(); // undo translate(cx, y) + scale
+
+    // name tag (debug off, but let's show it small)
+    // already in HUD
+
+    ctx.restore();
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 2,
+      life: 1,
+      decay: 0.04 + Math.random() * 0.04,
+      size: 2 + Math.random() * 5,
+      color
+    });
+  }
+}
+
+function spawnHitText(x, y, text, color) {
+  hits.push({ x, y, text, color, life: 1, vy: -1.5 });
+}
+
+function showSpecialName(name, color) {
+  const el = document.getElementById('comboDisplay');
+  el.textContent = '✦ ' + name + ' ✦';
+  el.style.color = color;
+  el.style.textShadow = `0 0 20px ${color}`;
+  el.style.opacity = '1';
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => el.style.opacity = '0', 1200);
+}
+
+function updateCombo() {
+  const now = Date.now();
+  if (now - lastComboTime < 2000) {
+    comboCount++;
+  } else {
+    comboCount = 1;
+  }
+  lastComboTime = now;
+  if (comboCount >= 2) {
+    const el = document.getElementById('comboDisplay');
+    el.textContent = comboCount + ' HIT COMBO!';
+    el.style.color = comboCount >= 5 ? '#ff0066' : '#ffcc00';
+    el.style.textShadow = `0 0 20px ${comboCount >= 5 ? '#ff0066' : '#ffcc00'}`;
+    el.style.opacity = '1';
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(() => el.style.opacity = '0', 1500);
+  }
+}
+
+// ── Background Rendering ───────────────────────────────
+let bgStars = [];
+for (let i = 0; i < 60; i++) {
+  bgStars.push({ x: Math.random()*W, y: Math.random()*(H*0.6), r: Math.random()*1.5 });
+}
+
+function drawBackground() {
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+  sky.addColorStop(0, '#0a001a');
+  sky.addColorStop(1, '#1a0033');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H * 0.7);
+
+  // Stars
+  ctx.fillStyle = '#ffffff';
+  bgStars.forEach(s => {
+    const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(Date.now()*0.001 + s.x));
+    ctx.globalAlpha = twinkle * 0.8;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Moon
+  ctx.save();
+  ctx.fillStyle = '#ffffcc';
+  ctx.shadowColor = '#ffffaa';
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.arc(W * 0.85, H * 0.12, 22, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#1a0033';
+  ctx.beginPath();
+  ctx.arc(W * 0.85 + 10, H * 0.12, 18, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Skyline silhouette
+  ctx.fillStyle = '#0d0020';
+  const buildings = [
+    [0, 0.55, 0.08, 0.25],
+    [0.07, 0.45, 0.06, 0.35],
+    [0.12, 0.5, 0.1, 0.3],
+    [0.21, 0.4, 0.07, 0.4],
+    [0.27, 0.48, 0.12, 0.32],
+    [0.38, 0.42, 0.08, 0.38],
+    [0.45, 0.5, 0.1, 0.3],
+    [0.54, 0.38, 0.09, 0.42],
+    [0.62, 0.46, 0.13, 0.34],
+    [0.74, 0.42, 0.08, 0.38],
+    [0.81, 0.5, 0.1, 0.3],
+    [0.9, 0.44, 0.1, 0.36],
+  ];
+  buildings.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(bx*W, by*H, bw*W, bh*H);
+  });
+
+  // Building windows
+  ctx.fillStyle = '#ffcc0033';
+  buildings.forEach(([bx, by, bw, bh]) => {
+    for (let wy = by*H + 5; wy < (by+bh)*H - 5; wy += 12) {
+      for (let wx = bx*W + 4; wx < (bx+bw)*W - 4; wx += 10) {
+        if (Math.random() > 0.4) {
+          ctx.fillStyle = Math.random() > 0.7 ? '#ffaa0055' : '#ffff0033';
+          ctx.fillRect(wx, wy, 5, 6);
+        }
+      }
+    }
+  });
+
+  // Ground
+  const grd = ctx.createLinearGradient(0, H*0.7, 0, H);
+  grd.addColorStop(0, '#1a0a2e');
+  grd.addColorStop(0.3, '#0d0018');
+  grd.addColorStop(1, '#000010');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, H * 0.7, W, H * 0.3);
+
+  // Arena floor
+  const floor = ctx.createLinearGradient(0, H - 60, 0, H);
+  floor.addColorStop(0, '#220033');
+  floor.addColorStop(1, '#0a000f');
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, H - 60, W, 60);
+
+  // Floor line glow
+  ctx.save();
+  ctx.strokeStyle = '#ff440088';
+  ctx.shadowColor = '#ff4400';
+  ctx.shadowBlur = 15;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, H - 60);
+  ctx.lineTo(W, H - 60);
+  ctx.stroke();
+  ctx.restore();
+
+  // Floor grid lines
+  ctx.strokeStyle = '#ffffff08';
+  ctx.lineWidth = 1;
+  for (let fx = 0; fx < W; fx += 60) {
+    ctx.beginPath();
+    ctx.moveTo(fx, H - 60);
+    ctx.lineTo(fx + 30, H);
+    ctx.stroke();
+  }
+
+  // Neon signs
+  drawNeonSign(150, H * 0.55, 'KOF', '#ff0044');
+  drawNeonSign(600, H * 0.5, '2026', '#00aaff');
+}
+
+function drawNeonSign(x, y, text, color) {
+  ctx.save();
+  ctx.font = 'bold 16px monospace';
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10 + 5 * Math.sin(Date.now() * 0.005);
+  ctx.globalAlpha = 0.7;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Particle / Hit Update ──────────────────────────────
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.12;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function updateHits() {
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const h = hits[i];
+    h.y += h.vy;
+    h.life -= 0.03;
+    if (h.life <= 0) hits.splice(i, 1);
+  }
+}
+
+function drawHits() {
+  hits.forEach(h => {
+    ctx.save();
+    ctx.globalAlpha = h.life;
+    ctx.fillStyle = h.color;
+    ctx.shadowColor = h.color;
+    ctx.shadowBlur = 15;
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(h.text, h.x, h.y);
+    ctx.restore();
+  });
+}
+
+// ── Game Fighters ──────────────────────────────────────
+let p1, p2;
+
+// ── Input State ────────────────────────────────────────
+const keys = {
+  left: false, right: false, jump: false,
+  punch: false, kick: false, special: false
+};
+const prevKeys = { punch: false, kick: false, special: false, jump: false };
+
+// ── Touch Controls Setup ───────────────────────────────
+function setupTouch() {
+  const btns = document.querySelectorAll('.btn');
+  btns.forEach(btn => {
+    const action = btn.dataset.action;
+
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      keys[action] = true;
+      btn.classList.add('pressed');
+    }, { passive: false });
+
+    btn.addEventListener('touchend', e => {
+      e.preventDefault();
+      keys[action] = false;
+      btn.classList.remove('pressed');
+    }, { passive: false });
+
+    btn.addEventListener('touchcancel', e => {
+      e.preventDefault();
+      keys[action] = false;
+      btn.classList.remove('pressed');
+    }, { passive: false });
+
+    // Mouse fallback for desktop testing
+    btn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      keys[action] = true;
+      btn.classList.add('pressed');
+    });
+    btn.addEventListener('mouseup', () => {
+      keys[action] = false;
+      btn.classList.remove('pressed');
+    });
+    btn.addEventListener('mouseleave', () => {
+      keys[action] = false;
+      btn.classList.remove('pressed');
+    });
+  });
+}
+
+// Keyboard controls
+document.addEventListener('keydown', e => {
+  switch(e.key) {
+    case 'ArrowLeft':  keys.left = true; break;
+    case 'ArrowRight': keys.right = true; break;
+    case 'ArrowUp':    keys.jump = true; break;
+    case 'z': case 'Z': keys.punch = true; break;
+    case 'x': case 'X': keys.kick = true; break;
+    case 'c': case 'C': case ' ': keys.special = true; break;
+  }
+});
+document.addEventListener('keyup', e => {
+  switch(e.key) {
+    case 'ArrowLeft':  keys.left = false; break;
+    case 'ArrowRight': keys.right = false; break;
+    case 'ArrowUp':    keys.jump = false; break;
+    case 'z': case 'Z': keys.punch = false; break;
+    case 'x': case 'X': keys.kick = false; break;
+    case 'c': case 'C': case ' ': keys.special = false; break;
+  }
+});
+
+// ── Player Input Processing ─────────────────────────────
+function processInput() {
+  if (!p1 || gameState !== 'playing') return;
+
+  // movement
+  if (keys.left && !keys.right) {
+    p1.velX = -p1.char.speed;
+    if (p1.onGround) p1.state = 'walk';
+  } else if (keys.right && !keys.left) {
+    p1.velX = p1.char.speed;
+    if (p1.onGround) p1.state = 'walk';
+  } else {
+    if (p1.onGround && p1.state === 'walk') p1.state = 'idle';
+  }
+
+  // blocking (hold back while opponent is in front)
+  const holdingBack = (p1.facing === 1 && keys.left) || (p1.facing === -1 && keys.right);
+  p1.blocking = holdingBack && p1.onGround && p1.hitStun <= 0;
+
+  // jump (rising edge)
+  if (keys.jump && !prevKeys.jump) p1.jump();
+
+  // attacks (rising edge)
+  if (keys.punch && !prevKeys.punch) p1.punch();
+  if (keys.kick  && !prevKeys.kick)  p1.kick();
+  if (keys.special && !prevKeys.special) p1.doSpecial();
+
+  // update special button glow
+  const spBtn = document.getElementById('btnSpecial');
+  if (p1.specialCooldown > 0 || p1.special < 100) {
+    spBtn.classList.add('cooling');
+  } else {
+    spBtn.classList.remove('cooling');
+  }
+
+  Object.assign(prevKeys, {
+    punch: keys.punch, kick: keys.kick,
+    special: keys.special, jump: keys.jump
+  });
+}
+
+// ── Round / Game Logic ─────────────────────────────────
+function startTimer() {
+  roundTimer = 99;
+  updateTimerDisplay();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (gameState !== 'playing') return;
+    roundTimer--;
+    updateTimerDisplay();
+    if (roundTimer <= 0) {
+      clearInterval(timerInterval);
+      endRound(null); // time up
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  el.textContent = roundTimer;
+  el.style.color = roundTimer <= 10 ? '#ff2200' : '#fff';
+  el.style.textShadow = roundTimer <= 10
+    ? '0 0 10px #ff2200, 0 0 20px #ff2200'
+    : '0 0 10px #ff4400, 0 0 20px #ff4400';
+}
+
+function endRound(winner) {
+  gameState = 'roundover';
+  clearInterval(timerInterval);
+  comboCount = 0;
+
+  let winnerFighter, text;
+  if (winner === 'p1') {
+    p1Wins++;
+    winnerFighter = p1;
+    text = 'K.O.!';
+  } else if (winner === 'p2') {
+    p2Wins++;
+    winnerFighter = p2;
+    text = 'K.O.!';
+  } else {
+    // time up — whoever has more health wins
+    if (p1.health > p2.health) { p1Wins++; text = 'TIME UP!'; }
+    else if (p2.health > p1.health) { p2Wins++; text = 'TIME UP!'; }
+    else { text = 'DRAW!'; }
+  }
+
+  // announce
+  announceText(text, 2000, () => {
+    updateWinDots();
+    if (p1Wins >= 2 || p2Wins >= 2) {
+      setTimeout(() => endMatch(), 800);
+    } else {
+      currentRound++;
+      setTimeout(() => startRound(), 1200);
+    }
+  });
+}
+
+function endMatch() {
+  gameState = 'gameover';
+  playSound('win');
+  const screen = document.getElementById('gameoverScreen');
+  screen.classList.remove('hidden');
+
+  if (p1Wins >= 2) {
+    document.getElementById('winnerName').textContent = p1.char.name + ' WINS!';
+    document.getElementById('resultText').textContent = 'Player Victory';
+    document.getElementById('winnerName').style.color = p1.char.color;
+    document.getElementById('winnerName').style.textShadow = `0 0 20px ${p1.char.color}`;
+  } else {
+    document.getElementById('winnerName').textContent = p2.char.name + ' WINS!';
+    document.getElementById('resultText').textContent = 'CPU Victory';
+    document.getElementById('winnerName').style.color = p2.char.color;
+    document.getElementById('winnerName').style.textShadow = `0 0 20px ${p2.char.color}`;
+  }
+}
+
+function updateWinDots() {
+  const ids = ['p1w1','p1w2','p2w1','p2w2'];
+  ids.forEach(id => document.getElementById(id).className = 'win-dot');
+  for (let i = 0; i < p1Wins; i++) {
+    document.getElementById('p1w' + (i+1)).classList.add('p1');
+  }
+  for (let i = 0; i < p2Wins; i++) {
+    document.getElementById('p2w' + (i+1)).classList.add('p2');
+  }
+}
+
+function announceText(text, duration, cb) {
+  const el = document.getElementById('roundAnnounce');
+  el.textContent = text;
+  el.classList.add('show');
+  setTimeout(() => {
+    el.classList.remove('show');
+    if (cb) setTimeout(cb, 300);
+  }, duration - 300);
+}
+
+function startRound() {
+  document.getElementById('roundDisplay').textContent = 'ROUND ' + currentRound;
+  p1.health = 100; p1.special = 0;
+  p2.health = 100; p2.special = 0;
+  p1.x = 100; p1.y = p1.groundY; p1.velX = 0; p1.velY = 0; p1.state = 'idle'; p1.onGround = true;
+  p2.x = W - 150; p2.y = p2.groundY; p2.velX = 0; p2.velY = 0; p2.state = 'idle'; p2.onGround = true;
+  particles = []; hits = [];
+  announceText('ROUND ' + currentRound, 1500, () => {
+    announceText('FIGHT!', 800, () => {
+      gameState = 'playing';
+      startTimer();
+    });
+  });
+}
+
+// ── Game Loop ──────────────────────────────────────────
+let lastTime = 0;
+function gameLoop(ts) {
+  requestAnimationFrame(gameLoop);
+  const dt = Math.min(ts - lastTime, 32);
+  lastTime = ts;
+
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+
+  if (gameState === 'playing' || gameState === 'roundover') {
+    processInput();
+
+    // update
+    p1.update(dt / 16, p2);
+    p2.update(dt / 16, p1);
+    p2.updateAI(p1, dt / 16);
+
+    updateParticles();
+    updateHits();
+
+    // check death
+    if (gameState === 'playing') {
+      if (p1.health <= 0 && p1.state !== 'dead') {
+        p1.state = 'dead';
+        setTimeout(() => endRound('p2'), 600);
+        gameState = 'roundover';
+      } else if (p2.health <= 0 && p2.state !== 'dead') {
+        p2.state = 'dead';
+        setTimeout(() => endRound('p1'), 600);
+        gameState = 'roundover';
+      }
+    }
+
+    // draw
+    p1.draw();
+    p2.draw();
+    drawParticles();
+    drawHits();
+  }
+}
+
+// ── Character Select Screen ────────────────────────────
+function buildCharSelect() {
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = '';
+  CHARACTERS.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'char-card' + (i === selectedChar ? ' selected' : '');
+    card.innerHTML = `
+      <div class="selected-badge">P1 SELECT</div>
+      <canvas class="char-canvas" width="80" height="90" id="previewCanvas${i}"></canvas>
+      <div class="char-name">${c.name}</div>
+      <div class="char-origin">${c.origin}</div>
+      <div class="char-stats">${c.stats}</div>
+    `;
+    card.onclick = () => {
+      document.querySelectorAll('.char-card').forEach(cc => cc.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedChar = i;
+    };
+    grid.appendChild(card);
+
+    // draw preview
+    setTimeout(() => drawCharPreview(i), 0);
+  });
+}
+
+function drawCharPreview(idx) {
+  const canvas2 = document.getElementById('previewCanvas' + idx);
+  if (!canvas2) return;
+  const c2 = canvas2.getContext('2d');
+  const ch = CHARACTERS[idx];
+  c2.clearRect(0,0,80,90);
+
+  // glow
+  c2.save();
+  c2.shadowColor = ch.color;
+  c2.shadowBlur = 15;
+  // simple stick figure preview
+  c2.fillStyle = ch.hairColor;
+  c2.beginPath();
+  c2.ellipse(40, 22, 14, 10, 0, Math.PI, Math.PI*2);
+  c2.fill();
+  c2.fillStyle = '#ffcc99';
+  c2.beginPath();
+  c2.ellipse(40, 28, 13, 14, 0, 0, Math.PI*2);
+  c2.fill();
+  // body
+  c2.fillStyle = ch.clothColor;
+  c2.fillRect(27, 40, 26, 24);
+  // belt
+  c2.fillStyle = ch.beltColor;
+  c2.fillRect(27, 51, 26, 5);
+  // arms
+  c2.fillStyle = ch.color;
+  c2.fillRect(18, 40, 9, 20); // left
+  c2.fillRect(53, 40, 9, 20); // right
+  // legs
+  c2.fillStyle = ch.clothColor;
+  c2.fillRect(28, 62, 10, 22);
+  c2.fillRect(42, 62, 10, 22);
+  // shoes
+  c2.fillStyle = '#222';
+  c2.fillRect(27, 80, 14, 8);
+  c2.fillRect(41, 80, 14, 8);
+  // eyes
+  c2.fillStyle = '#000';
+  c2.fillRect(43, 24, 5, 4);
+  c2.restore();
+}
+
+function startGame() {
+  // pick CPU character (different from player)
+  let cpuChar = (selectedChar + 1 + Math.floor(Math.random() * (CHARACTERS.length - 1))) % CHARACTERS.length;
+
+  p1 = new Fighter(100, 1, selectedChar, true);
+  p2 = new Fighter(W - 150, -1, cpuChar, false);
+
+  document.getElementById('p1Name').textContent = CHARACTERS[selectedChar].name;
+  document.getElementById('p2Name').textContent = 'CPU · ' + CHARACTERS[cpuChar].name;
+
+  p1Wins = 0; p2Wins = 0;
+  currentRound = 1;
+  particles = []; hits = [];
+  updateWinDots();
+
+  document.getElementById('selectScreen').classList.add('hidden');
+  document.getElementById('gameoverScreen').classList.add('hidden');
+  document.getElementById('gameWrapper').style.display = 'flex';
+
+  gameState = 'roundover'; // will be set to playing after announce
+  startRound();
+}
+
+function showSelect() {
+  document.getElementById('gameoverScreen').classList.add('hidden');
+  document.getElementById('gameWrapper').style.display = 'none';
+  document.getElementById('selectScreen').classList.remove('hidden');
+  gameState = 'select';
+  clearInterval(timerInterval);
+  buildCharSelect();
+}
+
+// ── Init ───────────────────────────────────────────────
+setupTouch();
+buildCharSelect();
+requestAnimationFrame(gameLoop);
+
+// ── Prevent context menu on long press ─────────────────
+document.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('touchmove', e => {
+  if (e.target.closest('#controls')) e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>
