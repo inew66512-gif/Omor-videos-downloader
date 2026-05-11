@@ -1,5 +1,0 @@
-Flask
-yt-dlp
-requests
-static-ffmpeg
-python-telegram-bot
