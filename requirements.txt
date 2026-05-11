@@ -1,5 +1,3 @@
 Flask
 yt-dlp
 gunicorn
-requests
-python-telegram-bot
